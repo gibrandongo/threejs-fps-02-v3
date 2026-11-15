@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amberline — Depot Skirmish</title>
+<link rel="stylesheet" href="./styles.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+
+  <!-- In-world feedback overlays -->
+  <div id="flash"></div>
+  <div id="vignette"></div>
+  <div id="hitdir"></div>
+  <div id="crosshair"><span class="ch t"></span><span class="ch b"></span><span class="ch l"></span><span class="ch r"></span><span class="ch dot"></span></div>
+  <div id="hitmarker"><span></span><span></span><span></span><span></span></div>
+  <div id="scope"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div></div>
+  <div id="interact"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="topbar">
+      <div id="teamscore"><span id="score-atk" class="atk">0</span><span class="sep">—</span><span id="score-def" class="def">0</span></div>
+      <div id="clockbox"><div id="clock">1:40</div><div id="roundlabel">ROUND 1 · FIRST TO 8</div></div>
+      <div id="planbanner"><span id="plan-name">—</span><span id="plan-role">—</span></div>
+    </div>
+    <div id="minimap-wrap"><canvas id="minimap" width="220" height="176"></canvas><div id="callout">DEPOT</div></div>
+    <div id="killfeed"></div>
+    <div id="radiolog"></div>
+    <div id="bombstatus"></div>
+    <div id="banner"></div>
+    <div id="subbanner"></div>
+    <div id="bottombar">
+      <div id="healthbox"><div id="healthnum">100</div><div class="b-label">HEALTH</div><div id="armorbar"><i></i></div><div class="b-label small">ARMOR <span id="armornum">0</span></div></div>
+      <div id="ammobox"><div id="ammonum">30<span id="ammo-reserve"> / 90</span></div><div class="b-label"><span id="weaponname">VK-7 RIFLE</span> · <span id="firemode">AUTO</span></div><div id="grenades"></div></div>
+      <div id="moneybox"><div id="moneynum">$800</div><div class="b-label">FUNDS · <span id="streaklabel">—</span></div><div id="mvpstars"></div></div>
+    </div>
+    <div id="teambar"></div>
+    <div id="spectate"></div>
+    <div id="damagefeed"></div>
+  </div>
+
+  <!-- Buy menu -->
+  <div id="buy" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-head"><h2>BUY EQUIPMENT</h2><span id="buy-money">$800</span><span id="buy-timer">5.0</span></div>
+      <p class="panel-sub">Freeze time — press B or click. Keys 1–8 buy. Esc closes.</p>
+      <div id="buy-grid"></div>
+      <div class="panel-foot"><span id="buy-hint">Loss streak bonus grows each round lost in a row.</span><button id="buy-close" type="button">CLOSE [B]</button></div>
+    </div>
+  </div>
+
+  <!-- Scoreboard -->
+  <div id="scoreboard" class="overlay hidden">
+    <div class="panel wide">
+      <div class="panel-head"><h2>MATCH SCOREBOARD</h2><span id="sb-round">ROUND 1 / 15</span></div>
+      <div class="sb-cols"><div id="sb-atk"></div><div id="sb-def"></div></div>
+      <div id="sb-history"></div>
+      <div class="panel-foot"><span>Hold TAB any time · MVP ★ for round best</span><button id="sb-close" type="button">CLOSE</button></div>
+    </div>
+  </div>
+
+  <!-- Field manual -->
+  <div id="manual" class="overlay hidden">
+    <div class="panel wide">
+      <div class="panel-head"><h2>FIELD MANUAL</h2><button id="manual-close" type="button">CLOSE [F1]</button></div>
+      <pre id="manual-text"></pre>
+    </div>
+  </div>
+
+  <!-- Pause / settings -->
+  <div id="pause" class="overlay hidden">
+    <div class="panel">
+      <div class="panel-head"><h2>PAUSED</h2></div>
+      <label class="setting">Mouse sensitivity <input id="set-sens" type="range" min="20" max="300" value="100"><span id="set-sens-val">1.00</span></label>
+      <label class="setting">Master volume <input id="set-vol" type="range" min="0" max="100" value="80"><span id="set-vol-val">80%</span></label>
+      <label class="setting">Bot skill <input id="set-skill" type="range" min="0" max="2" step="1" value="1"><span id="set-skill-val">Regular</span></label>
+      <label class="setting"><input id="set-autopilot" type="checkbox"> Autopilot (watch the bots play)</label>
+      <div class="panel-foot"><button id="resume-btn" type="button">RESUME</button><button id="restart-btn" type="button">RESTART MATCH</button></div>
+    </div>
+  </div>
+
+  <!-- Match end -->
+  <div id="matchend" class="overlay hidden">
+    <div class="panel wide">
+      <div class="panel-head"><h2 id="matchend-title">MATCH OVER</h2></div>
+      <div id="matchend-body"></div>
+      <div class="panel-foot"><button id="playagain-btn" type="button">PLAY AGAIN</button></div>
+    </div>
+  </div>
+
+  <!-- Start screen -->
+  <div id="start" class="overlay">
+    <div class="panel wide start-panel">
+      <h1>AMBERLINE</h1>
+      <p class="tagline">DEPOT SKIRMISH · 5v5 ROUND TACTICS · BOMB OBJECTIVE</p>
+      <p>You are the Jackals' point agent. Plant the charge at Site A or Site B — or eliminate all five Wardens. Your four bot teammates run a shared team plan every round, listen for gunfire, and rotate on the plant. Wardens hold angles, investigate noise, and defuse.</p>
+      <div class="controls-grid">
+        <span><b>WASD</b> move</span><span><b>Mouse</b> look</span><span><b>Click</b> fire</span><span><b>R</b> reload</span>
+        <span><b>Shift</b> walk quietly</span><span><b>Ctrl / C</b> crouch</span><span><b>Space</b> jump</span><span><b>Q</b> swap weapon</span>
+        <span><b>1–4</b> weapons / grenades</span><span><b>G</b> throw grenade</span><span><b>B</b> buy menu</span><span><b>E</b> plant / defuse</span>
+        <span><b>Tab</b> scoreboard</span><span><b>F1</b> field manual</span><span><b>P / Esc</b> pause</span><span><b>F</b> inspect weapon</span>
+      </div>
+      <p class="hint">Stopping to aim pays: spread and recoil punish firing on the move. Headshots deal double damage. Bots hear unsuppressed shots and sprinting footsteps — walls muffle sound.</p>
+      <button id="play-btn" type="button">CLICK TO PLAY</button>
+      <p class="tiny">Original game · original map, art, sounds and names · three.js, no network, runs offline</p>
+    </div>
+  </div>
+
+  <div id="soak-status" aria-hidden="true"></div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
